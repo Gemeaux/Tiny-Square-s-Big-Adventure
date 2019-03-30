@@ -1,0 +1,64 @@
+*若未特別註明是物件哪裡的X座標或Y座標,
+ 皆為物件左上角的X座標或Y座標。
+ 
+*請在test.js上編寫
+
+1.入口 (寬度固定30px , 高度固定30px)
+
+create_entry(X座標 , Y座標 , 指向)
+
+範例: create_entry(50 , 470 , "top");
+
+2. 出口 (寬度固定30px , 高度固定30px)
+
+create_exit(X座標 , Y座標 , 指向)
+
+範例: create_exit(920 , 470 , "top");
+
+3. 實體平台
+
+create_solid_platform(X座標 , Y座標 , 寬度 , 高度)
+
+範例: create_solid_platform(300 , 480 , 400 , 20);
+
+4. 存檔點 (寬度固定5px , 高度固定30px)
+
+create_checkpoints(X座標 , Y座標 , "vertical"(橫向)/"horizontal"(縱向))
+
+範例: create_checkpoints(150 , 470 , "horizontal");
+
+5. 水體
+
+create_water_pool(X座標 , Y座標 , 寬度 , 高度)
+
+範例: create_water_pool(300 , 480 , 400 , 20);
+
+6. 岩漿
+
+create_lava_pool(X座標 , Y座標 , 寬度 , 高度)
+
+範例: create_lava_pool(300 , 480 , 400 , 20);
+
+7. 傳送門 (寬度固定30px , 高度固定30px)
+
+create_portals(入口X座標 , 入口Y座標 , 入口指向 , 出口X座標 , 出口Y座標 , 出口指向)
+
+範例: create_portals(570 , 450 , "top" , 400 , 450 , "top");
+
+8. 刺 (單體寬度固定5px , 單體高度固定5px)
+
+create_spikes(X座標 , Y座標 , 刺的數量 , 指向)
+
+範例: create_spikes(475 , 475 , 10 , "top");
+
+9. 砲塔 (半徑固定10px)
+
+create_turret(圓心X座標 , 圓心Y座標 , 射擊範圍X座標 , 射擊範圍Y座標 , 射擊範圍寬度 , 射擊範圍高度 , 射擊冷卻時間)
+
+範例: create_turret(500 , 350 , 300 , 430 , 400 , 50 , 30);
+
+10. 電鋸 
+
+create_saw(半徑 , 路徑(圓心座標) , 速度)
+
+範例: create_saw(15 , [[750 , 480] , [900 , 480]] , 10);

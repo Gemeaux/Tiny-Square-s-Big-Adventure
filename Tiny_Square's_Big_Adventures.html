@@ -1,0 +1,2704 @@
+<!DOCTTYPE>
+<html>
+
+	<head>
+		
+		<meta charset = "utf-8">
+	
+		<title>TEST</title>
+		
+		<style>
+		
+			wrapper {
+				position: absolute;
+				top: 0px;
+				left: 0px;
+				width: 100%;
+				height: 100%;
+				overflow: hidden;
+				background: black;
+			}
+			
+			canvas {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+			}
+		
+		</style>
+	
+	</head>
+	
+	<body>
+		
+		<wrapper>
+	
+			<canvas id = "background"></canvas>
+	
+			<canvas id = "gore"></canvas>
+	
+			<canvas id = "tiny_square"></canvas>
+			
+			<canvas id = "checkpoints"></canvas>
+			
+			<canvas id = "portal"></canvas>
+			
+			<canvas id = "laser"></canvas>
+			
+			<canvas id = "spikes"></canvas>
+			
+			<canvas id = "saws"></canvas>
+			
+			<canvas id = "bullets"></canvas>
+			
+			<canvas id = "turrets"></canvas>
+			
+			<canvas id = "lava_pool"></canvas>
+
+			<canvas id = "water_pool"></canvas>
+
+			<canvas id = "solid_platforms"></canvas>
+
+			<canvas id = "darkness"></canvas>
+			
+			<canvas id = "static_menu"></canvas>
+			
+			<canvas id = "dynamic_menu"></canvas>
+			
+			<canvas id = "transit"></canvas>
+			
+		</wrapper>
+	
+	</body>
+	
+	<script src = "game_map.js"></script>
+	
+	<script>
+		
+		// init
+		
+		// game modes
+		
+		var game_over = true;
+		
+		var game_paused = false;
+		
+		var gore_mode = true;
+		
+		var darkness_mode = false;
+		
+		var invisible_spike_mode = false;
+		
+		// music
+		
+		var music = {
+			normal_track: new Audio("AMAS - Good Vibes.mp3"), //AMAS - Good Vibes , Tiger Tracks - Christian Nanzell
+			normal_track_volume: 100,
+			dark_track: new Audio("Ruins of an Empire.mp3"),
+			dark_track_volume: 0,
+		}
+		
+		function play_music () {
+			
+			music.normal_track.loop = true;
+			
+			music.dark_track.loop = true;
+			
+			music.normal_track.volume = music.normal_track_volume / 100;
+			
+			music.dark_track.volume = music.dark_track_volume / 100;
+			
+			music.normal_track.play();
+			
+			music.dark_track.play();
+			
+		}
+		
+		window.onclick = function () {
+			play_music();
+		}
+		
+		var music_engine = setInterval(function(){
+			
+			if (darkness_mode && music.dark_track_volume < 100) {
+				
+				music.dark_track_volume++;
+				
+				music.normal_track_volume--;
+				
+			} else if (!darkness_mode && music.normal_track_volume < 100) {
+				
+				music.dark_track_volume--;
+				
+				music.normal_track_volume++;
+				
+			}
+			
+			music.normal_track.volume = music.normal_track_volume / 100;
+			
+			music.dark_track.volume = music.dark_track_volume / 100;
+			
+		} , 40);
+		
+		// global parameters
+		
+		var canvas_width = 1000;
+		
+		var canvas_height = 500;
+		
+		var static_menu_canvas = document.getElementById("static_menu");
+		
+		var static_menu_brush = static_menu_canvas.getContext("2d");
+		
+		var dynamic_menu_canvas = document.getElementById("dynamic_menu");
+		
+		var dynamic_menu_brush = dynamic_menu_canvas.getContext("2d");
+		
+		var transit_canvas = document.getElementById("transit");
+		
+		var transit_brush = transit_canvas.getContext("2d");
+		
+		var background_canvas = document.getElementById("background");
+		
+		var background_brush = background_canvas.getContext("2d");
+		
+		var darkness_canvas = document.getElementById("darkness");
+		
+		var darkness_brush = darkness_canvas.getContext("2d");
+		
+		var gore_canvas = document.getElementById("gore");
+		
+		var gore_brush = gore_canvas.getContext("2d");
+		
+		var tiny_square_canvas = document.getElementById("tiny_square");
+		
+		var tiny_square_brush = tiny_square_canvas.getContext("2d");
+		
+		var lava_pool_canvas = document.getElementById("lava_pool");
+		
+		var lava_pool_brush = lava_pool_canvas.getContext("2d");
+		
+		var laser_canvas = document.getElementById("laser");
+		
+		var laser_brush = laser_canvas.getContext("2d");
+		
+		var saw_canvas = document.getElementById("saws");
+		
+		var saw_brush = saw_canvas.getContext("2d");
+		
+		var turrets_canvas = document.getElementById("turrets");
+		
+		var turrets_brush = turrets_canvas.getContext("2d");
+		
+		var bullets_canvas = document.getElementById("bullets");
+		
+		var bullets_brush = bullets_canvas.getContext("2d");
+		
+		var checkpoints_canvas = document.getElementById("checkpoints");
+		
+		var checkpoints_brush = checkpoints_canvas.getContext("2d");
+		
+		var portal_canvas = document.getElementById("portal");
+		
+		var portal_brush = portal_canvas.getContext("2d");
+		
+		var spikes_canvas = document.getElementById("spikes");
+		
+		var spikes_brush = spikes_canvas.getContext("2d");
+		
+		var water_pool_canvas = document.getElementById("water_pool");
+		
+		var water_pool_brush = water_pool_canvas.getContext("2d");
+		
+		var solid_platforms_canvas = document.getElementById("solid_platforms");
+		
+		var solid_platforms_brush = solid_platforms_canvas.getContext("2d");
+		
+		// game parameters
+		
+		var gravity = 2;
+		
+		var friction = 1;
+		
+		var tiny_square = {
+			death_count: 0,
+			color: "dodgerblue",
+			width: 10,
+			height: 10,
+			top: 0,
+			left: (canvas_width - 10) / 2,
+			acceleration: 2,
+			x_speed: 0,
+			x_speed_limit: 1,
+			jump_speed: 1.2,
+			in_air: true,
+			in_fluid: false,
+			y_speed: 0,
+			y_speed_limit: 3,
+			is_dead: false,
+			collision_found: false,
+			spawn_point: {top: 450 , left: 950},
+			respawn: function(delay){
+				if (tiny_square.is_dead) {
+					tiny_square.death_count++;
+				}
+				tiny_square.x_speed = 0;
+				tiny_square.y_speed = 0;
+				tiny_square.collision_found = true;
+				setTimeout(function(){
+					tiny_square.in_air = true;
+					tiny_square.in_fluid = true;
+					tiny_square.top = tiny_square.spawn_point.top;
+					tiny_square.left = tiny_square.spawn_point.left;
+					tiny_square.is_dead = false;
+				} , delay);
+			},
+			splatter: function(){
+				tiny_square.is_dead = true;
+				if (!gore_mode) {
+					gore_brush.beginPath();
+					gore_brush.fillStyle = "white";
+					gore_brush.fillRect(0 , 0 , canvas_width , canvas_height);
+				} else {
+					var gore_radius;
+					for (gore_radius = 10; gore_radius <= 30; gore_radius += 3) {
+						for (var i = 0; i < Math.pow(gore_radius , 2) * (1 / gore_radius) * 3; i++) {
+							gore_brush.beginPath();
+							gore_brush.fillStyle = "red";
+							var left_rand = Math.pow(-1 , Math.floor(Math.random() * 2));
+							var left_adjust = left_rand * Math.floor(Math.random() * gore_radius)
+							var top_rand = Math.pow(-1 , Math.floor(Math.random() * 2));
+							var top_adjust = top_rand * Math.floor(Math.random() * gore_radius)
+							if (Math.sqrt(Math.pow(left_adjust , 2) + Math.pow(top_adjust , 2)) > gore_radius) {
+								i--;
+								continue;
+							}
+							left_adjust += left_rand * (-1) * tiny_square.width / 2;
+							top_adjust += top_rand * (-1) * tiny_square.height / 2;
+							gore_brush.fillRect(tiny_square.left + left_adjust , tiny_square.top + top_adjust , 1 , 1);
+						}
+					}
+				}
+				tiny_square.respawn(0);
+			}
+		}
+		
+		// menu && transit
+		
+		static_menu_canvas.width = canvas_width;
+		
+		static_menu_canvas.height = canvas_height;
+		
+		static_menu_canvas.style.marginLeft = canvas_width / (-2);
+		
+		static_menu_canvas.style.marginTop = canvas_height / (-2);
+		
+		dynamic_menu_canvas.width = canvas_width;
+		
+		dynamic_menu_canvas.height = canvas_height;
+		
+		dynamic_menu_canvas.style.marginLeft = canvas_width / (-2);
+		
+		dynamic_menu_canvas.style.marginTop = canvas_height / (-2);
+		
+		transit_canvas.width = canvas_width;
+		
+		transit_canvas.height = canvas_height;
+		
+		transit_canvas.style.marginLeft = canvas_width / (-2);
+		
+		transit_canvas.style.marginTop = canvas_height / (-2);
+		
+		var main_menu = {
+			is_activated: true,
+			menu_icon: {
+				opacity: 100,
+				dimming: true,
+			},
+			img_blocks: {
+				width: 160,
+				height: 90,
+			},
+			draw_static: function(){
+				// title
+				static_menu_brush.beginPath();
+				static_menu_brush.font = "bold 40px monospace";
+				static_menu_brush.textAlign = "center";
+				static_menu_brush.fillStyle = "rgb(0 , 0 , 0)";
+				static_menu_brush.fillText("TINY SQUARE'S" , canvas_width / 2 , 60);
+				static_menu_brush.fillText("BIG" , canvas_width / 2 , 110);
+				static_menu_brush.fillText("ADVENTURES" , canvas_width / 2 , 160);
+				// map select
+				var imgs = [];
+				for (var i = 0; i < 2; i++) {
+					for (var j = 0; j < 4; j++) {
+						let img = document.createElement("img");
+						img.src = (i * 4 + j) + ".bmp";
+						imgs.push(img);
+					}
+				}
+				var cnt = 100;
+				var bug = setInterval(function(){
+					for (var i = 0; i < 2; i++) {
+						for (var j = 0; j < 4; j++) {
+							static_menu_brush.drawImage(imgs[i * 4 + j] , (canvas_width - (main_menu.img_blocks.width * 4)) / 5 * (j + 1) + main_menu.img_blocks.width * j , 190 + 120 * i , main_menu.img_blocks.width , main_menu.img_blocks.height);
+						}
+					}
+					cnt--;
+					if (cnt <= 0) {
+						clearInterval(bug);
+					}
+				} , 10);
+			},
+			arrows: {
+				top: 210,
+				left: (canvas_width - (160 * 4)) / 5,
+				narrowing: true,
+				move_distance: 0,
+			},
+			draw_dynamic: function(){
+				// clear canvas
+				dynamic_menu_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+				// arrows
+				// left
+				dynamic_menu_brush.beginPath();
+				dynamic_menu_brush.moveTo(main_menu.arrows.left - 50 + main_menu.arrows.move_distance , main_menu.arrows.top);
+				dynamic_menu_brush.lineTo(main_menu.arrows.left - 50 + main_menu.arrows.move_distance , main_menu.arrows.top + 50);
+				dynamic_menu_brush.lineTo(main_menu.arrows.left - 20 + main_menu.arrows.move_distance , main_menu.arrows.top + 25);
+				dynamic_menu_brush.fillStyle = "black";
+				dynamic_menu_brush.fill();
+				// right
+				dynamic_menu_brush.beginPath();
+				dynamic_menu_brush.moveTo(main_menu.arrows.left + 208 - main_menu.arrows.move_distance , main_menu.arrows.top);
+				dynamic_menu_brush.lineTo(main_menu.arrows.left + 208 - main_menu.arrows.move_distance , main_menu.arrows.top + 50);
+				dynamic_menu_brush.lineTo(main_menu.arrows.left + 178 - main_menu.arrows.move_distance , main_menu.arrows.top + 25);
+				dynamic_menu_brush.fillStyle = "black";
+				dynamic_menu_brush.fill();
+				// narrowing
+				if (main_menu.arrows.narrowing) {
+					main_menu.arrows.move_distance++;
+				} else {
+					main_menu.arrows.move_distance--;
+				}
+				if (main_menu.arrows.move_distance == 8) {
+					main_menu.arrows.narrowing = false;
+				} else if (main_menu.arrows.move_distance == -8) {
+					main_menu.arrows.narrowing = true;
+				}
+				// glimmering
+				dynamic_menu_brush.beginPath();
+				dynamic_menu_brush.font = "bold 30px monospace";
+				dynamic_menu_brush.textAlign = "center";
+				dynamic_menu_brush.fillStyle = "rgba(0 , 0 , 0 , " + main_menu.menu_icon.opacity / 100 + ")";
+				dynamic_menu_brush.fillText("PRESS ENTER TO START" , canvas_width / 2 , 460);
+				if (main_menu.menu_icon.dimming) {
+					main_menu.menu_icon.opacity -= 1;
+				} else {
+					main_menu.menu_icon.opacity += 1
+				}
+				if (main_menu.menu_icon.opacity == 100) {
+					main_menu.menu_icon.dimming = true;
+				} else if (main_menu.menu_icon.opacity == 0) {
+					main_menu.menu_icon.dimming = false;
+				}
+			},
+			transit_blocks: {
+				left: canvas_width,
+				height: 20,
+				margin: 50,
+				speed: 20,
+			},
+			transit: function(destination){
+				game_paused = true;
+				var wipe_in = setInterval(function(){
+					main_menu.transit_blocks.left -= main_menu.transit_blocks.speed;
+					for (var i = 0; i < canvas_height / main_menu.transit_blocks.height; i++) {
+						transit_brush.beginPath();
+						transit_brush.fillStyle = "white";
+						transit_brush.fillRect(main_menu.transit_blocks.left + i * main_menu.transit_blocks.margin , i * main_menu.transit_blocks.height , canvas_width + canvas_height / main_menu.transit_blocks.height * main_menu.transit_blocks.margin , main_menu.transit_blocks.height);
+					}
+					if (main_menu.transit_blocks.left <= -1 * canvas_height / main_menu.transit_blocks.height * main_menu.transit_blocks.margin) {
+						clearInterval(wipe_in);
+						game_paused = false;
+						main_menu.is_activated = false;
+						main_menu.transit_blocks.left = canvas_width;
+						game_over = false;
+						if (destination != "menu") {
+							generate_map(game_maps[current_map]);
+						} else {
+							generate_map(restore);
+							darkness_mode = false;
+							gore_mode = true;
+							invisible_spike_mode = false;
+							main_menu.is_activated = true;
+							static_menu_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+							main_menu.draw_static();
+						}
+						var wipe_out = setInterval(function(){
+							main_menu.transit_blocks.left -= main_menu.transit_blocks.speed;
+							for (var i = 0; i < canvas_height / main_menu.transit_blocks.height; i++) {
+								transit_brush.clearRect(main_menu.transit_blocks.left + i * main_menu.transit_blocks.margin , i * main_menu.transit_blocks.height , canvas_width + canvas_height / main_menu.transit_blocks.height * main_menu.transit_blocks.margin , main_menu.transit_blocks.height);
+							}
+							if (main_menu.transit_blocks.left <= -1 * canvas_height / main_menu.transit_blocks.height * main_menu.transit_blocks.margin) {
+								clearInterval(wipe_out);
+								main_menu.transit_blocks.left = canvas_width;
+							}
+						} , 10);						
+					}
+				} , 10);
+			},
+		}
+		
+		// pause menu
+		
+		var pause_menu = {
+			draw: function(){
+				var y_dis = -50;
+				static_menu_brush.beginPath();
+				// title
+				// letter
+				static_menu_brush.font = "bold 60px monospace";
+				static_menu_brush.fillText("GAME PAUSED" , canvas_width / 2 , canvas_height / 2 + y_dis);
+				// outline
+				static_menu_brush.strokeStyle = "white";
+				static_menu_brush.strokeText("GAME PAUSED" , canvas_width / 2 , canvas_height / 2 + y_dis);
+				// instructions
+				// letter
+				static_menu_brush.font = "bold 30px monospace";
+				static_menu_brush.fillText("(Q) QUIT               " , canvas_width / 2 , canvas_height / 2 + y_dis + 50);
+				var gore_text = (gore_mode)?("(G) GORE MODE        ON"):("(G) GORE MODE       Off");
+				static_menu_brush.fillText(gore_text , canvas_width / 2 , canvas_height / 2 + y_dis + 100);
+				var darkness_text = (darkness_mode)?("(D) DARKNESS MODE    ON"):("(D) DARKNESS MODE   Off");
+				static_menu_brush.fillText(darkness_text , canvas_width / 2 , canvas_height / 2 + y_dis + 150);
+				var invisible_spike_text = (invisible_spike_mode)?("(I) INVISIBLE MODE   ON"):("(I) INVISIBLE MODE  Off");
+				static_menu_brush.fillText(invisible_spike_text , canvas_width / 2 , canvas_height / 2 + y_dis + 200);
+				// outline
+				static_menu_brush.strokeStyle = "white";
+				static_menu_brush.strokeText("(Q) QUIT               " , canvas_width / 2 , canvas_height / 2 + y_dis + 50);
+				static_menu_brush.strokeText(gore_text , canvas_width / 2 , canvas_height / 2 + y_dis + 100);
+				static_menu_brush.strokeText(darkness_text , canvas_width / 2 , canvas_height / 2 + y_dis + 150);
+				static_menu_brush.strokeText(invisible_spike_text , canvas_width / 2 , canvas_height / 2 + y_dis + 200);
+			}
+		}
+		
+		// menu init
+		
+		main_menu.draw_static();
+		
+		// menu engine
+		
+		var menu_engine = setInterval(function(){
+			
+			if (main_menu.is_activated) {
+			
+				main_menu.draw_dynamic();
+				
+			} else {
+				
+				dynamic_menu_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+				
+				static_menu_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+				
+				if (game_paused && !game_over) {
+					
+					pause_menu.draw();
+					
+				}
+				
+			}
+			
+		} , 10);
+		
+		// background canvas
+		
+		background_canvas.width = canvas_width;
+		
+		background_canvas.height = canvas_height;
+		
+		background_canvas.style.marginLeft = canvas_width / (-2);
+		
+		background_canvas.style.marginTop = canvas_height / (-2);
+		
+		background_brush.beginPath();
+		
+		background_brush.fillStyle = "white";
+		
+		background_brush.fillRect(0 , 0 , canvas_width , canvas_height);
+		
+		// darkness
+		
+		darkness_canvas.width = canvas_width;
+		
+		darkness_canvas.height = canvas_height;
+		
+		darkness_canvas.style.marginLeft = canvas_width / (-2);
+		
+		darkness_canvas.style.marginTop = canvas_height / (-2);
+		
+		var mode_engine = setInterval(function(){
+			
+			// darkness mode
+			
+			darkness_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			if (darkness_mode) {
+				
+				var light_radius = 50;
+				
+				// darkness
+				
+				darkness_brush.beginPath();
+				
+				darkness_brush.fillStyle = "black";
+				
+				darkness_brush.rect(0 , 0 , canvas_width , canvas_height);
+				
+				darkness_brush.arc(tiny_square.left + tiny_square.width / 2 , tiny_square.top + tiny_square.height / 2 , light_radius , Math.PI * 0 , Math.PI * 2 , true);
+				
+				darkness_brush.fill();
+				
+				// light
+				
+				darkness_brush.beginPath();
+				
+				var grd = darkness_brush.createRadialGradient(tiny_square.left + tiny_square.width / 2 , tiny_square.top + tiny_square.height / 2 , 0 , tiny_square.left + tiny_square.width / 2 , tiny_square.top + tiny_square.height / 2, light_radius);
+				
+				grd.addColorStop(0, "transparent");
+				
+				grd.addColorStop(1, "black");
+				
+				darkness_brush.fillStyle = grd;
+				
+				darkness_brush.arc(tiny_square.left + tiny_square.width / 2 , tiny_square.top + tiny_square.height / 2 , light_radius , Math.PI * 0 , Math.PI * 2 , true);
+				
+				darkness_brush.fill();
+				
+			}
+			
+			// gore
+			
+			if (!gore_mode) {
+				
+				gore_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+				
+			}
+			
+		} , 10);
+		
+		// gore
+		
+		gore_canvas.width = canvas_width;
+		
+		gore_canvas.height = canvas_height;
+		
+		gore_canvas.style.marginLeft = canvas_width / (-2);
+		
+		gore_canvas.style.marginTop = canvas_height / (-2);
+		
+		// tiny square canvas
+		
+		tiny_square_canvas.width = canvas_width;
+		
+		tiny_square_canvas.height = canvas_height;
+		
+		tiny_square_canvas.style.marginLeft = canvas_width / (-2);
+		
+		tiny_square_canvas.style.marginTop = canvas_height / (-2);
+		
+		// create tiny square
+		
+		function draw_tiny_square (left , top) {
+			
+			// tiny square
+						
+			tiny_square_brush.beginPath();
+			
+			tiny_square_brush.fillStyle = tiny_square.color;
+			
+			tiny_square_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			tiny_square_brush.fillRect(left , top , tiny_square.width , tiny_square.height);
+			
+		}
+		
+		// solid platform canvas
+		
+		solid_platforms_canvas.width = canvas_width;
+		
+		solid_platforms_canvas.height = canvas_height;
+		
+		solid_platforms_canvas.style.marginLeft = canvas_width / (-2);
+		
+		solid_platforms_canvas.style.marginTop = canvas_height / (-2);
+		
+		// create solid platform
+		
+		var solid_platforms = [];
+		
+		function create_solid_platform (left , top , width , height) { // x_position , y__position , width , height
+			
+			solid_platforms_brush.beginPath();
+			
+			solid_platforms_brush.fillStyle = "black";
+			
+			solid_platforms_brush.fillRect(left , top , width , height);
+			
+			solid_platforms.push({top: top , left: left , width: width , height: height});
+			
+		}
+		
+		// collision detect
+		
+		function solid_platform_collision_detect () {
+			
+			if (tiny_square.is_dead) {
+				return true;
+			}
+			
+			for (var i = 0 ; i < solid_platforms.length; i++) {
+				
+				if (tiny_square.left + tiny_square.width > solid_platforms[i].left) {
+					
+					if (tiny_square.left < solid_platforms[i].left + solid_platforms[i].width) {
+						
+						// on top of platform
+						
+						if (tiny_square.top + tiny_square.height > solid_platforms[i].top) {
+							
+							if (tiny_square.top + tiny_square.height <= solid_platforms[i].top + tiny_square.y_speed_limit) {
+								
+								if (tiny_square.left > solid_platforms[i].left && 
+									tiny_square.left + tiny_square.width < solid_platforms[i].left + solid_platforms[i].width) {
+							
+									tiny_square.top = solid_platforms[i].top - tiny_square.height;
+
+									tiny_square.y_speed = 0;
+
+									tiny_square.in_air = false;
+									
+								} else if (tiny_square.left <= solid_platforms[i].left) {
+									
+									let dx = Math.abs(tiny_square.left - solid_platforms[i].left);
+									
+									let dy = Math.abs(tiny_square.top - solid_platforms[i].top);
+									
+									if (dy / dx > 1) {
+										
+										tiny_square.top = solid_platforms[i].top - tiny_square.height;
+
+										tiny_square.y_speed = 0;
+
+										tiny_square.in_air = false;
+										
+									} else {
+										
+										tiny_square.left = solid_platforms[i].left - tiny_square.width;
+										
+										tiny_square.x_speed = 0;
+										
+									}
+									
+								} else if (tiny_square.left + tiny_square.width >= solid_platforms[i].left + solid_platforms[i].width) {
+									
+									let dx = Math.abs(tiny_square.left + tiny_square.width - solid_platforms[i].left - solid_platforms[i].width);
+									
+									let dy = Math.abs(tiny_square.top - solid_platforms[i].top);
+									
+									if (dy / dx > 1) {
+										
+										tiny_square.top = solid_platforms[i].top - tiny_square.height;
+
+										tiny_square.y_speed = 0;
+
+										tiny_square.in_air = false;
+										
+									} else {
+										
+										tiny_square.left = solid_platforms[i].left + solid_platforms[i].width;
+										
+										tiny_square.x_speed = 0;
+										
+									}
+									
+								}
+								
+							}
+							
+						}
+						
+						// below platform
+						
+						if (tiny_square.top < solid_platforms[i].top + solid_platforms[i].height) {
+							
+							if (tiny_square.top + tiny_square.y_speed_limit >= solid_platforms[i].top + solid_platforms[i].height) {
+								
+								if (tiny_square.left > solid_platforms[i].left && 
+									tiny_square.left + tiny_square.width < solid_platforms[i].left + solid_platforms[i].width) {
+							
+									tiny_square.top = solid_platforms[i].top + solid_platforms[i].height;
+
+									tiny_square.y_speed = 0;
+									
+								} else if (tiny_square.left <= solid_platforms[i].left) {
+									
+									let dx = Math.abs(tiny_square.left - solid_platforms[i].left);
+									
+									let dy = Math.abs(tiny_square.top + tiny_square.height - solid_platforms[i].top - solid_platforms[i].height);
+									
+									if (dy / dx > 1) {
+										
+										tiny_square.top = solid_platforms[i].top + solid_platforms[i].height;
+
+										tiny_square.y_speed = 0;
+										
+									} else {
+										
+										tiny_square.left = solid_platforms[i].left - tiny_square.width;
+										
+										tiny_square.x_speed = 0;
+										
+									}
+									
+								} else if (tiny_square.left + tiny_square.width >= solid_platforms[i].left + solid_platforms[i].width) {
+									
+									let dx = Math.abs(tiny_square.left + tiny_square.width - solid_platforms[i].left - solid_platforms[i].width);
+									
+									let dy = Math.abs(tiny_square.top + tiny_square.height - solid_platforms[i].top - solid_platforms[i].height);
+									
+									if (dy / dx > 1) {
+										
+										tiny_square.top = solid_platforms[i].top + solid_platforms[i].height;
+
+										tiny_square.y_speed = 0;
+										
+									} else {
+										
+										tiny_square.left = solid_platforms[i].left + solid_platforms[i].width;
+										
+										tiny_square.x_speed = 0;
+										
+									}
+									
+								}
+								
+							}
+							
+						}
+						
+					}
+					
+				}
+				
+				if (tiny_square.top + tiny_square.height > solid_platforms[i].top) {
+					
+					if (tiny_square.top < solid_platforms[i].top + solid_platforms[i].height) {
+						
+						// on the left of platform
+						
+						if (tiny_square.left + tiny_square.width > solid_platforms[i].left) {
+							
+							if (tiny_square.left + tiny_square.width <= solid_platforms[i].left + tiny_square.x_speed_limit) {
+								
+								if (tiny_square.top > solid_platforms[i].top && 
+									tiny_square.top + tiny_square.height < solid_platforms[i].top + solid_platforms[i].height) {
+							
+									tiny_square.left = solid_platforms[i].left - tiny_square.width;
+
+									tiny_square.x_speed = 0;
+									
+								} else if (tiny_square.top <= solid_platforms[i].top) {
+									
+									let dx = Math.abs(tiny_square.left - solid_platforms[i].left);
+									
+									let dy = Math.abs(tiny_square.top - solid_platforms[i].top);
+									
+									if (dy / dx <= 1) {
+										
+										tiny_square.left = solid_platforms[i].left - tiny_square.width;
+										
+										tiny_square.x_speed = 0;
+										
+									} else {
+										
+										tiny_square.top = solid_platforms[i].top - tiny_square.height;
+										
+										tiny_square.y_speed = 0;
+										
+									}
+									
+								} else if (tiny_square.top + tiny_square.height >= solid_platforms[i].top + solid_platforms[i].height) {
+									
+									let dx = Math.abs(tiny_square.left - solid_platforms[i].left);
+									
+									let dy = Math.abs(tiny_square.top + tiny_square.height - solid_platforms[i].top - solid_platforms[i].height);
+									
+									if (dy / dx <= 1) {
+										
+										tiny_square.left = solid_platforms[i].left - tiny_square.width;
+										
+										tiny_square.x_speed = 0;
+										
+									} else {
+										
+										tiny_square.top = solid_platforms[i].top + solid_platforms[i].height;
+										
+										tiny_square.y_speed = 0;
+										
+									}
+									
+								}
+								
+							}
+							
+						}
+						
+						// on the right of platform
+						
+						if (tiny_square.left < solid_platforms[i].left + solid_platforms[i].width) {
+							
+							if (tiny_square.left + tiny_square.x_speed_limit >= solid_platforms[i].left + solid_platforms[i].width) {
+								
+								if (tiny_square.top > solid_platforms[i].top && 
+									tiny_square.top + tiny_square.height < solid_platforms[i].top + solid_platforms[i].height) {
+							
+									tiny_square.left = solid_platforms[i].left + solid_platforms[i].width;
+
+									tiny_square.x_speed = 0;
+									
+								} else if (tiny_square.top <= solid_platforms[i].top) {
+									
+									let dx = Math.abs(tiny_square.left + tiny_square.width - solid_platforms[i].left - solid_platforms[i].width);
+									
+									let dy = Math.abs(tiny_square.top - solid_platforms[i].top);
+									
+									if (dy / dx <= 1) {
+										
+										tiny_square.left = solid_platforms[i].left + solid_platforms[i].width;
+										
+										tiny_square.x_speed = 0;
+										
+									} else {
+										
+										tiny_square.top = solid_platforms[i].top - tiny_square.height;
+										
+										tiny_square.y_speed = 0;
+										
+									}
+									
+								} else if (tiny_square.top + tiny_square.height >= solid_platforms[i].top + solid_platforms[i].height) {
+									
+									let dx = Math.abs(tiny_square.left + tiny_square.width - solid_platforms[i].left - solid_platforms[i].width);
+									
+									let dy = Math.abs(tiny_square.top + tiny_square.height - solid_platforms[i].top - solid_platforms[i].height);
+									
+									if (dy / dx <= 1) {
+										
+										tiny_square.left = solid_platforms[i].left + solid_platforms[i].width;
+										
+										tiny_square.x_speed = 0;
+										
+									} else {
+										
+										tiny_square.top = solid_platforms[i].top + solid_platforms[i].height;
+										
+										tiny_square.y_speed = 0;
+										
+									}
+									
+								}
+								
+							}
+							
+						}
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+		// turrets & bullets
+		
+		turrets_canvas.width = canvas_width;
+		
+		turrets_canvas.height = canvas_height;
+		
+		turrets_canvas.style.marginLeft = canvas_width / (-2);
+		
+		turrets_canvas.style.marginTop = canvas_height / (-2);
+		
+		// create turret
+		
+		// turrets
+		
+		var turrets = [];
+		
+		function create_turret (left , top , fire_zone_left , fire_zone_top , fire_zone_width , fire_zone_height , fire_rate) {
+			
+			var barrel_length = 15;
+			
+			var barrel_width = 5;
+			
+			var outer_radius = 10;
+			
+			var inner_radius = 5;
+			
+			turrets_brush.beginPath();
+			
+			turrets_brush.strokeStyle = "dimgray";
+			
+			turrets_brush.moveTo(left , top);
+			
+			turrets_brush.lineTo(left , top + barrel_length);
+			
+			turrets_brush.lineWidth = barrel_width;
+			
+			turrets_brush.stroke();
+			
+			turrets_brush.beginPath();
+			
+			turrets_brush.fillStyle = "black";
+			
+			turrets_brush.arc(left , top , outer_radius , Math.PI * 0 , Math.PI * 2 , true);
+			
+			turrets_brush.fill();
+			
+			turrets_brush.beginPath();
+			
+			turrets_brush.fillStyle = "green";
+			
+			turrets_brush.arc(left , top , inner_radius , Math.PI * 0 , Math.PI * 2 , true);
+			
+			turrets_brush.fill();
+			
+			turrets.push({top: top , left: left , barrel_length: barrel_length , barrel_width: barrel_width , outer_radius: outer_radius , inner_radius: inner_radius , fire_zone_left: fire_zone_left , fire_zone_top: fire_zone_top , fire_zone_width: fire_zone_width , fire_zone_height: fire_zone_height , x_dis: 0 , y_dis: 15 , radial_angle: 1500 , is_activated: false , inner_color: "green" , cool_down: 0 , fire_rate: fire_rate});
+			
+		}
+		
+		// collision detect
+		
+		function turret_collision_detect () {
+			
+			for (var i = 0; i < turrets.length; i++) {
+				
+				if (tiny_square.left + tiny_square.width > turrets[i].fire_zone_left) {
+					
+					if (tiny_square.left < turrets[i].fire_zone_left + turrets[i].fire_zone_width) {
+						
+						if (tiny_square.top + tiny_square.height > turrets[i].fire_zone_top) {
+							
+							if (tiny_square.top < turrets[i].fire_zone_top + turrets[i].fire_zone_height) {
+								
+								turrets[i].is_activated = true;
+								
+								turrets[i].inner_color = "red";
+								
+								continue;
+								
+							}
+							
+						}
+						
+					}
+					
+				}
+				
+				turrets[i].is_activated = false;
+								
+				turrets[i].inner_color = "green";
+				
+			}
+			
+		}
+		
+		// bullets
+		
+		bullets_canvas.width = canvas_width;
+		
+		bullets_canvas.height = canvas_height;
+		
+		bullets_canvas.style.marginLeft = canvas_width / (-2);
+		
+		bullets_canvas.style.marginTop = canvas_height / (-2);
+		
+		// shoot function
+		
+		var bullets = [];
+		
+		function shoot (left , top , x_dis , y_dis) {
+			
+			var width = 5;
+			
+			var height = 5;
+			
+			var speed = 3;
+			
+			var x_speed = speed / Math.hypot(x_dis , y_dis) * x_dis;
+			
+			var y_speed = speed / Math.hypot(x_dis , y_dis) * y_dis;
+			
+			var ticks = Math.floor(Math.hypot(x_dis , y_dis) / speed);
+			
+			bullets_brush.beginPath();
+			
+			bullets_brush.fillStyle = "red";
+			
+			bullets_brush.fillRect(left - width / 2 , top - height / 2 , width , height);
+			
+			bullets.push({top: top , left: left , width: width , height: height , x_speed: x_speed , y_speed: y_speed , ticks: ticks , x: left - width / 2 , y: top - height / 2})
+			
+		}
+		
+		// bullet collision detect
+		
+		function bullets_collision_detect () {
+			
+			for (var i = 0; i < bullets.length; i++) {
+				
+				if (tiny_square.left + tiny_square.width > bullets[i].left - bullets[i].width / 2) {
+					
+					if (tiny_square.left < bullets[i].left + bullets[i].width / 2) {
+						
+						if (tiny_square.top + tiny_square.height > bullets[i].top - bullets[i].height / 2) {
+							
+							if (tiny_square.top < bullets[i].top + bullets[i].height / 2) {
+								
+								tiny_square.splatter();
+								
+								var sound_cue = new Audio("spike_sound.mp3");
+								
+								sound_cue.play();
+								
+								return true;
+								
+							}
+							
+						}
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+		// lava pool canvas
+		
+		lava_pool_canvas.width = canvas_width;
+		
+		lava_pool_canvas.height = canvas_height;
+		
+		lava_pool_canvas.style.marginLeft = canvas_width / (-2);
+		
+		lava_pool_canvas.style.marginTop = canvas_height / (-2);
+		
+		// laser barrier
+		
+		laser_canvas.width = canvas_width;
+		
+		laser_canvas.height = canvas_height;
+		
+		laser_canvas.style.marginLeft = canvas_width / (-2);
+		
+		laser_canvas.style.marginTop = canvas_height / (-2);
+		
+		var lasers = [];
+		
+		function create_laser (left , top , length , direction , delay , duration , initial_delay) {
+			
+			if (initial_delay == undefined) {
+				
+				initial_delay = 0;
+				
+			}
+			
+			if (direction == "vertical") {
+				
+				lasers.push({top: top , left: left , width: length , height: 5 , direction: direction , delay: delay , duration: duration , is_activated: false , current_tick: 0 , laser_width: 3});
+				
+			} else if (direction == "horizontal") {
+				
+				lasers.push({top: top , left: left , width: 5 , height: length , direction: direction , delay: delay , duration: duration , is_activated: false , current_tick: initial_delay * (-1) , laser_width: 3});
+				
+			}
+			
+		}
+		
+		function laser_collision_detect () {	
+				
+			if (tiny_square.collision_found || tiny_square.is_dead) {
+				return true;
+			}
+			
+			for (var i = 0; i < lasers.length; i++) {
+				
+				if (lasers[i].is_activated && lasers[i].direction == "horizontal") {
+					
+					if (tiny_square.left + tiny_square.width > lasers[i].left + (lasers[i].width - lasers[i].laser_width) / 2) {
+					
+						if (tiny_square.left < lasers[i].left + (lasers[i].width - lasers[i].laser_width) / 2 + lasers[i].laser_width) {
+
+							if (tiny_square.top + tiny_square.height > lasers[i].top) {
+
+								if (tiny_square.top < lasers[i].top + lasers[i].height) {
+
+									tiny_square.is_dead = true;
+
+									tiny_square.respawn(0);
+
+									var sound_cue = new Audio("lava_sound.mp3");
+
+									sound_cue.play();
+
+									return true;
+
+								}
+
+							}
+
+						}
+
+					}
+					
+				} else if (lasers[i].is_activated && lasers[i].direction == "vertical") {
+					
+					if (tiny_square.left + tiny_square.width > lasers[i].left) {
+					
+						if (tiny_square.left < lasers[i].left + lasers[i].width) {
+
+							if (tiny_square.top + tiny_square.height > lasers[i].top + (lasers[i].height - lasers[i].laser_width) / 2 + lasers[i].laser_width) {
+
+								if (tiny_square.top < lasers[i].top + (lasers[i].height - lasers[i].laser_width) / 2 + lasers[i].laser_width) {
+
+									tiny_square.is_dead = true;
+
+									tiny_square.respawn(0);
+
+									var sound_cue = new Audio("lava_sound.mp3");
+
+									sound_cue.play();
+
+									return true;
+
+								}
+
+							}
+
+						}
+
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+		function laser_animation () {
+			
+			laser_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			for (var i = 0; i < lasers.length; i++) {
+				
+				if (lasers[i].current_tick < lasers[i].delay) {
+					
+					lasers[i].is_activated = false;
+					
+					laser_brush.beginPath();
+					
+					laser_brush.fillStyle = "black";
+					
+					if (lasers[i].direction == "horizontal") {
+					
+						laser_brush.fillRect(lasers[i].left , lasers[i].top , lasers[i].width , 2);
+
+						laser_brush.fillRect(lasers[i].left , lasers[i].top + lasers[i].height - 2 , lasers[i].width , 2);
+						
+					} else if (lasers[i].direction == "vertical") {
+						
+						laser_brush.fillRect(lasers[i].left , lasers[i].top , 2 , lasers[i].height);
+
+						laser_brush.fillRect(lasers[i].left + lasers[i].width - 2 , lasers[i].top , 2 , lasers[i].height);
+						
+					}
+					
+				} else {
+					
+					lasers[i].is_activated = true;
+					
+					// laser beam
+					
+					laser_brush.beginPath();
+					
+					laser_brush.fillStyle = "rgba(255 , 0 , 0 , 0.7)";
+					
+					if (lasers[i].direction == "horizontal") {
+					
+						laser_brush.fillRect(lasers[i].left + (lasers[i].width - lasers[i].laser_width) / 2 , lasers[i].top , lasers[i].laser_width , lasers[i].height);
+						
+					} else if (lasers[i].direction == "vertical") {
+						
+						laser_brush.fillRect(lasers[i].left , lasers[i].top + (lasers[i].height - lasers[i].laser_width) / 2 , lasers[i].width , lasers[i].laser_width);
+						
+					}
+					
+					// pedestal
+					
+					laser_brush.beginPath();
+					
+					laser_brush.fillStyle = "black";
+					
+					if (lasers[i].direction == "horizontal") {
+					
+						laser_brush.fillRect(lasers[i].left , lasers[i].top , lasers[i].width , 2);
+
+						laser_brush.fillRect(lasers[i].left , lasers[i].top + lasers[i].height - 2 , lasers[i].width , 2);
+						
+					} else if (lasers[i].direction == "vertical") {
+						
+						laser_brush.fillRect(lasers[i].left , lasers[i].top , 2 , lasers[i].height);
+
+						laser_brush.fillRect(lasers[i].left + lasers[i].width - 2 , lasers[i].top , 2 , lasers[i].height);
+						
+					}
+					
+				}
+				
+				lasers[i].current_tick = (lasers[i].current_tick + 1) % (lasers[i].delay + lasers[i].duration);
+				
+			}
+			
+		}
+		
+		// create lava pool
+		
+		var lava_pools = [];
+		
+		function create_lava_pool (left , top , width , height) { // x_position , y__position , width , height
+			
+			lava_pool_brush.beginPath();
+			
+			lava_pool_brush.fillStyle = "red";
+			
+			lava_pool_brush.fillRect(left , top , width , height);
+			
+			lava_pools.push({top: top , left: left , width: width , height: height});
+			
+		}
+		
+		// collision detect
+		
+		function lava_pool_collision_detect () {	
+				
+			if (tiny_square.collision_found || tiny_square.is_dead) {
+				return true;
+			}		
+			
+			for (var i = 0 ; i < lava_pools.length; i++) {
+				
+				if (tiny_square.left + tiny_square.width > lava_pools[i].left) {
+					
+					if (tiny_square.left < lava_pools[i].left + lava_pools[i].width) {
+						
+						if (tiny_square.top + tiny_square.height > lava_pools[i].top) {
+							
+							if (tiny_square.top < lava_pools[i].top + lava_pools[i].height) {
+								
+								tiny_square.in_fluid = true;
+								
+								tiny_square.is_dead = true;
+
+								tiny_square.respawn(100);
+								
+								var sound_cue = new Audio("lava_sound.mp3");
+								
+								sound_cue.play();
+								
+								return true;
+								
+							}
+							
+						}
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+		// water pool canvas
+		
+		water_pool_canvas.width = canvas_width;
+		
+		water_pool_canvas.height = canvas_height;
+		
+		water_pool_canvas.style.marginLeft = canvas_width / (-2);
+		
+		water_pool_canvas.style.marginTop = canvas_height / (-2);
+		
+		// create water pool
+		
+		var water_pools = [];
+		
+		function create_water_pool (left , top , width , height) { // x_position , y__position , width , height
+			
+			water_pool_brush.beginPath();
+			
+			water_pool_brush.fillStyle = "rgba(0 , 191 , 255 , 0.4)";
+			
+			water_pool_brush.fillRect(left , top , width , height);
+			
+			water_pools.push({top: top , left: left , width: width , height: height});
+			
+		}
+		
+		// collision detect
+		
+		function water_pool_collision_detect () {	
+				
+			if (tiny_square.collision_found || tiny_square.is_dead) {
+				return true;
+			}		
+			
+			for (var i = 0 ; i < water_pools.length; i++) {
+				
+				if (tiny_square.left + tiny_square.width > water_pools[i].left) {
+					
+					if (tiny_square.left < water_pools[i].left + water_pools[i].width) {
+						
+						if (tiny_square.top + tiny_square.height > water_pools[i].top) {
+							
+							if (tiny_square.top < water_pools[i].top + water_pools[i].height) {
+								
+								if (!tiny_square.in_fluid) {
+								
+									tiny_square.in_fluid = true;
+									
+									tiny_square.in_air = false;
+
+								}
+								
+								return true;
+								
+							}
+							
+						}
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+		// portal canvas
+		
+		portal_canvas.width = canvas_width;
+		
+		portal_canvas.height = canvas_height;
+		
+		portal_canvas.style.marginLeft = canvas_width / (-2);
+		
+		portal_canvas.style.marginTop = canvas_height / (-2);
+		
+		// create portal
+		
+		var portals = [];
+		
+		function create_portals (a_left , a_top , a_direction , b_left , b_top , b_direction) {
+			
+			// portal a
+			
+			portal_brush.beginPath();
+			
+			var portal_a;
+			
+			if (a_direction == "top") {
+				
+				portal_a = portal_brush.createLinearGradient(a_left , a_top + 30 , a_left , a_top);
+				
+			} else if (a_direction == "bottom") {
+				
+				portal_a = portal_brush.createLinearGradient(a_left , a_top , a_left , a_top + 30);
+				
+			} else if (a_direction == "right") {
+				
+				portal_a = portal_brush.createLinearGradient(a_left , a_top , a_left + 30 , a_top);
+				
+			} else if (a_direction == "left") {
+				
+				portal_a = portal_brush.createLinearGradient(a_left + 30 , a_top , a_left , a_top);
+				
+			}
+			
+			portal_a.addColorStop(0 , "rgba(255 , 215 , 0 , 0.8)");
+			
+			portal_a.addColorStop(1 , "transparent");
+			
+			portal_brush.fillStyle = portal_a;
+			
+			portal_brush.fillRect(a_left , a_top , 30 , 30);
+			
+			// portal b
+			
+			portal_brush.beginPath();
+			
+			var portal_b;
+			
+			if (b_direction == "top") {
+				
+				portal_b = portal_brush.createLinearGradient(b_left , b_top + 30 , b_left , b_top);
+				
+			} else if (b_direction == "bottom") {
+				
+				portal_b = portal_brush.createLinearGradient(b_left , b_top , b_left , b_top + 30);
+				
+			} else if (b_direction == "right") {
+				
+				portal_b = portal_brush.createLinearGradient(b_left , b_top , b_left + 30 , b_top);
+				
+			} else if (b_direction == "left") {
+				
+				portal_b = portal_brush.createLinearGradient(b_left + 30 , b_top , b_left , b_top);
+				
+			}
+			
+			portal_b.addColorStop(0 , "rgba(0 , 191 , 255 , 0.8)");
+			
+			portal_b.addColorStop(1 , "transparent");
+			
+			portal_brush.fillStyle = portal_b;
+			
+			portal_brush.fillRect(b_left , b_top , 30 , 30);
+			
+			portals.push([{top: a_top , left: a_left , direction: a_direction} , {top: b_top , left: b_left , direction: b_direction}]);
+			
+		}
+		
+		// collision detect
+		
+		function portal_collision_detect () {
+				
+			if (tiny_square.collision_found || tiny_square.is_dead) {
+				return true;
+			}		
+			
+			for (var i = 0 ; i < portals.length; i++) {
+				
+				if (tiny_square.left + tiny_square.width > portals[i][0].left + 10 * (portals[i][0].direction == "top" || portals[i][0].direction == "bottom")) {
+					
+					if (tiny_square.left < portals[i][0].left + 30 - 10 * (portals[i][0].direction == "top" || portals[i][0].direction == "bottom")) {
+						
+						if (tiny_square.top + tiny_square.height > portals[i][0].top + 10 * (portals[i][0].direction == "left" || portals[i][0].direction == "right")) {
+							
+							if (tiny_square.top < portals[i][0].top + 30 - 10 * (portals[i][0].direction == "left" || portals[i][0].direction == "right")) {
+								
+								tiny_square.top = portals[i][1].top + 15 - tiny_square.height;
+								
+								tiny_square.left = portals[i][1].left + 15 - tiny_square.width;
+								
+								var sound_cue = new Audio("portal_sound.mp3");
+								
+								sound_cue.play();
+								
+								return true;
+								
+							}
+							
+						}
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+		// create entry
+		
+		var entries = [];
+		
+		function create_entry (left , top , direction) {
+			
+			tiny_square.top = top + 15 - tiny_square.height / 2;
+			
+			tiny_square.left = left + 15 - tiny_square.width / 2;
+			
+			tiny_square.spawn_point.top = top + 15 - tiny_square.height / 2;
+			
+			tiny_square.spawn_point.left = left + 15 - tiny_square.width / 2;
+			
+			portal_brush.beginPath();
+			
+			var entry;
+			
+			if (direction == "top") {
+				
+				entry = portal_brush.createLinearGradient(left , top + 30 , left , top);
+				
+			} else if (direction == "bottom") {
+				
+				entry = portal_brush.createLinearGradient(left , top , left , top + 30);
+				
+			} else if (direction == "right") {
+				
+				entry = portal_brush.createLinearGradient(left , top , left + 30 , top);
+				
+			} else if (direction == "left") {
+				
+				entry = portal_brush.createLinearGradient(left + 30 , top , left , top);
+				
+			}
+			
+			entry.addColorStop(0 , "rgba(100 , 255 , 0 , 0.8)");
+			
+			entry.addColorStop(1 , "transparent");
+			
+			portal_brush.fillStyle = entry;
+			
+			portal_brush.fillRect(left , top , 30 , 30);
+			
+			entries.push({top: top , left: left , direction: direction});
+			
+		}
+		
+		// create exit
+		
+		var exits = [];
+		
+		function create_exit (left , top , direction) {
+			
+			portal_brush.beginPath();
+			
+			var exit;
+			
+			if (direction == "top") {
+				
+				exit = portal_brush.createLinearGradient(left , top + 30 , left , top);
+				
+			} else if (direction == "bottom") {
+				
+				exit = portal_brush.createLinearGradient(left , top , left , top + 30);
+				
+			} else if (direction == "right") {
+				
+				exit = portal_brush.createLinearGradient(left , top , left + 30 , top);
+				
+			} else if (direction == "left") {
+				
+				exit = portal_brush.createLinearGradient(left + 30 , top , left , top);
+				
+			}
+			
+			exit.addColorStop(0 , "rgba(220 , 20 , 60 , 0.8)");
+			
+			exit.addColorStop(1 , "transparent");
+			
+			portal_brush.fillStyle = exit;
+			
+			portal_brush.fillRect(left , top , 30 , 30);
+			
+			exits.push({top: top , left: left , direction: direction});
+			
+		}
+		
+		// exit collision detect
+		
+		function exit_collision_detect () {
+			
+			for (var i = 0; i < exits.length; i++) {
+				
+				if (tiny_square.left + tiny_square.width > exits[i].left + 10 * (exits[i].direction == "top" || exits[i].direction == "bottom")) {
+					
+					if (tiny_square.left < exits[i].left + 30 - 10 * (exits[i].direction == "top" || exits[i].direction == "bottom")) {
+						
+						if (tiny_square.top + tiny_square.height > exits[i].top + 10 * (exits[i].direction == "left" || exits[i].direction == "right")) {
+							
+							if (tiny_square.top < exits[i].top + 30 - 10 * (exits[i].direction == "left" || exits[i].direction == "right")) {
+								
+								game_over = true;
+								
+								main_menu.transit("menu");
+								
+								break;
+								
+							}
+							
+						}
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+		// spikes
+		
+		spikes_canvas.width = canvas_width;
+		
+		spikes_canvas.height = canvas_height;
+		
+		spikes_canvas.style.marginLeft = canvas_width / (-2);
+		
+		spikes_canvas.style.marginTop = canvas_height / (-2);
+		
+		// create spikes
+		
+		var spikes = [];
+		
+		function create_spikes (left , top , amount , direction) {
+			
+			var spike_width = 5;
+			
+			var spike_height = 5;
+				
+			spikes_brush.beginPath();
+			
+			for (var i = 0; i < amount; i++) {
+
+				if (direction == "top") {
+			
+					spikes_brush.moveTo(left + i * spike_width , top + spike_height);
+
+					spikes_brush.lineTo(left + spike_width / 2 + i * spike_width , top);
+
+					spikes_brush.lineTo(left + spike_width + i * spike_width , top + spike_height);
+
+					spikes_brush.lineTo(left , top + spike_height);
+					
+				} else if (direction == "bottom") {
+
+					spikes_brush.moveTo(left + i * spike_width , top);
+
+					spikes_brush.lineTo(left + spike_width / 2 + i * spike_width , top + spike_height);
+
+					spikes_brush.lineTo(left + spike_width + i * spike_width , top);
+
+					spikes_brush.lineTo(left , top);
+
+				} else if (direction == "right") {
+
+					spikes_brush.moveTo(left , top + i * spike_height);
+
+					spikes_brush.lineTo(left + spike_width , top + spike_height / 2 + i * spike_height);
+
+					spikes_brush.lineTo(left , top + spike_height + i * spike_height);
+
+					spikes_brush.lineTo(left , top + i * spike_height);
+
+				} else if (direction == "left") {
+
+					spikes_brush.moveTo(left + spike_width , top + i * spike_height);
+
+					spikes_brush.lineTo(left , top + spike_height / 2 + i * spike_height);
+
+					spikes_brush.lineTo(left + spike_width , top + spike_height + i * spike_height);
+
+					spikes_brush.lineTo(left + spike_width , top + i * spike_height);
+
+				}
+				
+			}
+
+			if (direction == "top") {
+							
+				spikes.push({top: top , left: left , width: amount * spike_width , height: spike_height , direction: direction});
+					
+			} else if (direction == "bottom") {
+					
+				spikes.push({top: top , left: left , width: amount * spike_width , height: spike_height , direction: direction});
+
+			} else if (direction == "right") {
+				
+				spikes.push({top: top , left: left , width: spike_width , height: amount * spike_height , direction: direction});
+
+			} else if (direction == "left") {
+					
+				spikes.push({top: top , left: left , width: spike_width , height: amount * spike_height , direction: direction});
+
+			}
+			
+			if (invisible_spike_mode) {
+				
+				spikes_brush.fillStyle = "white";
+				
+			} else {
+			
+				spikes_brush.fillStyle = "red";
+			
+				spikes_brush.stroke();
+				
+			}
+			
+			spikes_brush.fill();
+			
+		}
+		
+		// collision detect
+		
+		function spike_collision_detect () {	
+				
+			if (tiny_square.collision_found || tiny_square.is_dead) {
+				return true;
+			}
+			
+			for (var i = 0 ; i < spikes.length; i++) {
+				
+				if (tiny_square.left + tiny_square.width > spikes[i].left) {
+					
+					if (tiny_square.left < spikes[i].left + spikes[i].width) {
+						
+						if (tiny_square.top + tiny_square.height > spikes[i].top) {
+							
+							if (tiny_square.top < spikes[i].top + spikes[i].height) {
+								
+								tiny_square.splatter();
+								
+								var sound_cue = new Audio("spike_sound.mp3");
+								
+								sound_cue.play();
+								
+								return true;
+								
+							}
+							
+						}
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+		// checkpoints
+		
+		checkpoints_canvas.width = canvas_width;
+		
+		checkpoints_canvas.height = canvas_height;
+		
+		checkpoints_canvas.style.marginLeft = canvas_width / (-2);
+		
+		checkpoints_canvas.style.marginTop = canvas_height / (-2);
+		
+		// create checkpoints
+		
+		var checkpoints = [];
+		
+		function create_checkpoints (left , top , direction) {
+			
+			checkpoints_brush.beginPath();
+			
+			var set_to_current;
+			
+			if (direction == "vertical") {
+				
+				checkpoints_brush.fillStyle = "rgba(102 , 255 , 51 , 0.6)";
+				
+				checkpoints_brush.fillRect(left , top , 30 , 5);
+				
+				set_to_current = function (boo) {
+					
+					checkpoints_brush.beginPath();
+					
+					checkpoints_brush.clearRect(left , top , 30 , 5);
+					
+					if (!boo) {
+						
+						checkpoints_brush.fillStyle = "rgba(102 , 255 , 51 , 0.6)";
+						
+					} else {
+											
+						checkpoints_brush.fillStyle = "rgba(0 , 204 , 0 , 0.7)";
+						
+					}
+					
+					checkpoints_brush.fillRect(left , top , 30 , 5);
+					
+				}
+				
+				checkpoints.push({top: top , left: left , width: 30 , height: 5 , direction: direction , set_to_current: set_to_current , is_current: false});
+				
+			} else if (direction == "horizontal") {
+				
+				checkpoints_brush.fillStyle = "rgba(102 , 255 , 51 , 0.6)";
+				
+				checkpoints_brush.fillRect(left , top , 5 , 30);
+				
+				set_to_current = function (boo) {
+					
+					checkpoints_brush.beginPath();
+					
+					checkpoints_brush.clearRect(left , top , 5 , 30);
+					
+					if (!boo) {
+						
+						checkpoints_brush.fillStyle = "rgba(102 , 255 , 51 , 0.6)";
+						
+					} else {
+						
+						checkpoints_brush.fillStyle = "rgba(0 , 204 , 0 , 0.7)";
+						
+					}
+					
+					checkpoints_brush.fillRect(left , top , 5 , 30);
+					
+				}
+				
+				checkpoints.push({top: top , left: left , width: 5 , height: 30 , direction: direction , set_to_current: set_to_current , is_current: false});
+				
+			}
+			
+		}
+		
+		// collision detect
+		
+		function checkpoint_collision_detect () {			
+				
+			if (tiny_square.collision_found || tiny_square.is_dead) {
+				return true;
+			}	
+			
+			for (var i = 0 ; i < checkpoints.length; i++) {
+				
+				if (tiny_square.left + tiny_square.width > checkpoints[i].left) {
+					
+					if (tiny_square.left < checkpoints[i].left + checkpoints[i].width) {
+						
+						if (tiny_square.top + tiny_square.height > checkpoints[i].top) {
+							
+							if (tiny_square.top < checkpoints[i].top + checkpoints[i].height) {
+								
+								if (checkpoints[i].is_current) {
+									
+									return 0;
+									
+								}
+									
+								tiny_square.spawn_point.left = checkpoints[i].left - (tiny_square.width - checkpoints[i].width) / 2;
+								
+								tiny_square.spawn_point.top = checkpoints[i].top - (tiny_square.height - checkpoints[i].height) / 2;
+								
+								for (var j = 0 ; j < checkpoints.length; j++) {
+								
+									if (j == i) {
+										
+										checkpoints[j].set_to_current(true);
+										
+										checkpoints[j].is_current = true;
+										
+									} else {
+										
+										checkpoints[j].set_to_current(false);
+										
+										checkpoints[j].is_current = false;
+										
+									}
+									
+								}
+								
+								return true;
+								
+							}
+							
+						}
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+		// saws
+		
+		saw_canvas.width = canvas_width;
+		
+		saw_canvas.height = canvas_height;
+		
+		saw_canvas.style.marginLeft = canvas_width / (-2);
+		
+		saw_canvas.style.marginTop = canvas_height / (-2);
+		
+		// create saws
+		
+		var saws = [];
+		
+		function create_saw (radius , paths , speed) {
+			
+			var square_width = radius * 2 / Math.sqrt(2);
+			
+			var square_height = radius * 2 / Math.sqrt(2);
+			
+			var center_x = paths[0][0];
+			
+			var center_y = paths[0][1];
+			
+			if (paths == undefined) {
+				paths = [[center_x , center_y]];
+			}
+			
+			saw_brush.save();
+			
+			saw_brush.translate(center_x, center_y);
+			
+			saw_brush.fillStyle = "black";
+			
+			saw_brush.rotate(0 * Math.PI / 180);
+			
+			saw_brush.rect(square_width / (-2) , square_height / (-2) , square_width , square_height);
+			
+			var squares = 4;
+			
+			for (var i = 0; i < squares - 1; i++) {
+			
+				saw_brush.rotate(90 / squares * Math.PI / 180);
+			
+				saw_brush.rect(square_width / (-2) , square_height / (-2) , square_width , square_height);
+				
+			}
+			
+			saw_brush.fill();
+			
+			saw_brush.restore();
+			
+			saws.push({top: center_x - radius / 2 , left: center_y - radius / 2 , width: radius * 2 , height: radius * 2 , center_x: center_x , center_y: center_y , radius: radius , paths: paths , speed: speed , current_x: center_x , current_y: center_y , current_path: 0 , ticks: 0 , degree: 0 , squares: squares});
+			
+		}
+		
+		// collision detect
+		
+		function saw_collision_detect () {
+				
+			if (tiny_square.collision_found || tiny_square.is_dead) {
+				return true;
+			}		
+			
+			for (var i = 0 ; i < saws.length; i++) {
+				
+				if (tiny_square.left + tiny_square.width > saws[i].current_x - saws[i].radius) {
+					
+					if (tiny_square.left < saws[i].current_x - saws[i].radius + saws[i].width) {
+						
+						if (tiny_square.top + tiny_square.height > saws[i].current_y - saws[i].radius) {
+							
+							if (tiny_square.top < saws[i].current_y - saws[i].radius + saws[i].height) {
+								
+								tiny_square.splatter();
+								
+								var sound_cue = new Audio("saw_sound.mp3");
+								
+								sound_cue.play();
+								
+								return true;
+								
+							}
+							
+						}
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+		// animation
+		
+		// lava
+			
+		var tide = 0;
+			
+		var filling = false;
+		
+		// portal
+		
+		var dim = 0;
+		
+		var dimming = true;
+		
+		// animation engine
+		
+		var animation_flag = false;
+		
+		var animation = setInterval(function(){
+			
+			if (animation_flag || game_paused) {
+				
+				return 0;
+				
+			}
+			
+			animation_flag = true;
+			
+			// laser
+			
+			laser_animation();
+			
+			// lava
+			
+			lava_pool_brush.beginPath();
+			
+			lava_pool_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+				
+			if (tide >= 200) {
+				filling = true;
+			} else if (tide <= 0) {
+				filling = false;
+			}
+				
+			if (filling) {
+				tide--;
+			} else {
+				tide++;
+			}
+			
+			for (var i = 0; i < lava_pools.length; i++) {
+				
+				var top = lava_pools[i].top + tide / 100;
+				
+				var height = lava_pools[i].height - tide / 100;
+				
+				lava_pool_brush.beginPath();
+				
+				lava_pool_brush.fillRect(lava_pools[i].left , top , lava_pools[i].width , height);
+				
+			}
+			
+			// saw 
+			
+			saw_brush.beginPath();
+			
+			saw_brush.clearRect(0 , 0 , canvas_width , canvas_height);			
+			
+			for (var i = 0; i < saws.length; i++) {
+				
+				saws[i].degree = (saws[i].degree + 3) % 360;
+			
+				var square_width = saws[i].radius * 2 / Math.sqrt(2);
+
+				var square_height = saws[i].radius * 2 / Math.sqrt(2);
+				
+				var x_dis = saws[i].paths[(saws[i].current_path + 1) % saws[i].paths.length][0] - saws[i].paths[saws[i].current_path][0];
+				
+				var y_dis = saws[i].paths[(saws[i].current_path + 1) % saws[i].paths.length][1] - saws[i].paths[saws[i].current_path][1];
+				
+				var total_dis = Math.sqrt(Math.pow(x_dis , 2) + Math.pow(y_dis , 2));
+				
+				if (saws[i].ticks == 0) {
+				
+					saws[i].ticks = Math.floor(total_dis / saws[i].speed * 10);
+					
+				}
+				
+				// draw saws
+				
+				saws[i].ticks--;
+				
+				if (saws[i].ticks == 0) {
+					
+					saws[i].current_x = saws[i].paths[(saws[i].current_path + 1) % saws[i].paths.length][0];
+				
+					saws[i].current_y = saws[i].paths[(saws[i].current_path + 1) % saws[i].paths.length][1];
+					
+				} else {
+				
+					saws[i].current_x = (saws[i].current_x * 10 + saws[i].speed * (x_dis / total_dis)) / 10;
+
+					saws[i].current_y = (saws[i].current_y * 10 + saws[i].speed * (y_dis / total_dis)) / 10;
+					
+				}
+			
+				saw_brush.save();
+
+				saw_brush.translate(saws[i].current_x, saws[i].current_y);
+
+				saw_brush.fillStyle = "black";
+
+				saw_brush.rotate(saws[i].degree * Math.PI / 180);
+
+				saw_brush.rect(square_width / (-2) , square_height / (-2) , square_width , square_height);
+			
+				for (var j = 0; j < saws[i].squares - 1; j++) {
+
+					saw_brush.rotate(90 / saws[i].squares * Math.PI / 180);
+					
+					saw_brush.rect(square_width / (-2) , square_height / (-2) , square_width , square_height);
+
+				}
+
+				saw_brush.fill();
+
+				saw_brush.restore();
+				
+				// transit
+				
+				if (saws[i].ticks == 0) {
+
+					saws[i].current_path++;
+					
+					saws[i].current_path %= saws[i].paths.length;
+				
+				}
+				
+			}
+			
+			// portal 
+			
+			if (dim >= 150) {
+				dimming = false;
+			} else if (dim <= 0) {
+				dimming = true;
+			}
+			
+			if (dimming) {
+				dim++;
+			} else {
+				dim--;
+			}
+			
+			portal_canvas.style.opacity = 1 - dim / 150 * 0.4;
+			
+			// turrets
+			
+			turrets_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			for (var i = 0; i < turrets.length; i++) {
+				
+				if (turrets[i].is_activated) {
+				
+					turrets[i].y_dis = (tiny_square.top + tiny_square.height / 2) - turrets[i].top;
+
+					turrets[i].x_dis = (tiny_square.left + tiny_square.width / 2) - turrets[i].left;
+					
+					if (turrets[i].cool_down == 0) {
+						
+						shoot(turrets[i].left , turrets[i].top , turrets[i].x_dis , turrets[i].y_dis);
+								
+						var sound_cue = new Audio("turret_sound.mp3");
+								
+						sound_cue.play();
+						
+					}
+					
+					turrets[i].cool_down = (turrets[i].cool_down + 1) % turrets[i].fire_rate;
+					
+				}
+					
+				var base = Math.hypot(turrets[i].x_dis , turrets[i].y_dis);
+				
+				turrets_brush.beginPath();
+				
+				turrets_brush.strokeStyle = "dimgray";
+				
+				turrets_brush.moveTo(turrets[i].left , turrets[i].top);
+				
+				turrets_brush.lineTo(turrets[i].left + turrets[i].barrel_length / base * turrets[i].x_dis , turrets[i].top + turrets[i].barrel_length / base * turrets[i].y_dis);
+				
+				turrets_brush.lineWidth = turrets[i].barrel_width;
+				
+				turrets_brush.stroke();
+				
+				turrets_brush.beginPath();
+				
+				turrets_brush.fillStyle = "black";
+				
+				turrets_brush.arc(turrets[i].left , turrets[i].top , turrets[i].outer_radius , Math.PI * 0 , Math.PI * 2 , true);
+				
+				turrets_brush.fill();
+				
+				turrets_brush.beginPath();
+				
+				turrets_brush.fillStyle = turrets[i].inner_color;
+				
+				turrets_brush.arc(turrets[i].left , turrets[i].top , turrets[i].inner_radius , Math.PI * 0 , Math.PI * 2 , true);
+				
+				turrets_brush.fill();
+					
+			}
+			
+			// bullets
+			
+			bullets_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			for (var i = 0; i < bullets.length; i++) {
+				
+				bullets[i].top += bullets[i].y_speed;
+				
+				bullets[i].left += bullets[i].x_speed;
+				
+				bullets[i].ticks--;
+				
+				bullets_brush.beginPath();
+
+				bullets_brush.fillStyle = "red";
+
+				bullets_brush.fillRect(bullets[i].left - bullets[i].width / 2 , bullets[i].top - bullets[i].height / 2 , bullets[i].width , bullets[i].height);
+				
+				if (bullets[i].ticks == 0) {
+					
+					bullets.splice(i , 1);
+					
+					i--;
+					
+				}
+				
+			}
+			
+			// disable gore
+			
+			if (!gore_mode) {
+				
+				gore_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+				
+			}
+			
+			animation_flag = false;
+			
+		} , 10);
+		
+		// engine
+		
+		// physics
+		
+		var move = [];
+		
+		var cycle_finished = true;
+		
+		var engine = setInterval(function(){
+			
+			if (!cycle_finished || game_paused) {
+				
+				return 0;
+			
+			}
+			
+			cycle_finished = false;
+			
+			// key control
+			
+			if (move[37] && !tiny_square.is_dead) {
+				
+				if (tiny_square.in_fluid){
+					
+					tiny_square.left -= 0.2;
+					
+				} else {
+				
+					if (tiny_square.x_speed > tiny_square.x_speed_limit * 100 * (-1)) {
+
+						tiny_square.x_speed -= tiny_square.acceleration;
+						
+						if (tiny_square.x_speed < tiny_square.x_speed_limit * 100 * (-1)) {
+							
+							tiny_square.x_speed = tiny_square.x_speed_limit * 100 * (-1);
+							
+						}
+
+					}
+					
+				}
+				
+			}
+			
+			if (move[38] && !tiny_square.is_dead) {
+				
+				if (tiny_square.in_fluid) {
+					
+					tiny_square.top -= 0.3;
+					
+				} else if (!tiny_square.in_air) {
+				
+					tiny_square.y_speed = (tiny_square.y_speed * 100 - tiny_square.jump_speed * 100) / 100;
+
+					tiny_square.in_air = true;
+					
+				}
+				
+			}
+			
+			if (move[39] && !tiny_square.is_dead) {
+				
+				if (tiny_square.in_fluid){
+					
+					tiny_square.left += 0.2;
+					
+				} else {
+				
+					if (tiny_square.x_speed < tiny_square.x_speed_limit * 100) {
+
+						tiny_square.x_speed += tiny_square.acceleration;
+						
+						if (tiny_square.x_speed > tiny_square.x_speed_limit * 100) {
+							
+							tiny_square.x_speed = tiny_square.x_speed_limit * 100;
+							
+						}
+
+					}
+					
+				}
+				
+			}
+			
+			if (move[40] && !tiny_square.is_dead && tiny_square.in_fluid) {
+				
+				tiny_square.top += 0.1;
+				
+			}
+			
+			// gravity
+			
+			if (!tiny_square.is_dead && !tiny_square.in_fluid && Math.abs(tiny_square.y_speed) < tiny_square.y_speed_limit) {
+			
+				tiny_square.y_speed = (tiny_square.y_speed * 100 + gravity) / 100;
+				
+				if (Math.abs(tiny_square.y_speed) > tiny_square.y_speed_limit) {
+					tiny_square.y_speed = tiny_square.y_speed_limit * Math.abs(tiny_square.y_speed) / tiny_square.y_speed;
+				}
+				
+			} else if (tiny_square.in_fluid) {
+				
+				tiny_square.top += 0.1;
+				
+				tiny_square.x_speed = 0;
+				
+				tiny_square.y_speed = 0;
+				
+			}
+			
+			// friction
+			
+			if (tiny_square.x_speed != 0 && !tiny_square.in_air) {
+				
+				tiny_square.x_speed += (-1) * friction * tiny_square.x_speed / Math.abs(tiny_square.x_speed);
+				
+			}
+			
+			// collision detect
+			
+			tiny_square.in_air = true;
+			
+			// utilities
+			
+			tiny_square.collision_found = false;
+			
+			// portals
+			
+			tiny_square.collision_found = portal_collision_detect();
+			
+			// checkpoints 
+			
+			tiny_square.collision_found = checkpoint_collision_detect();
+			
+			// traps
+			
+			tiny_square.collision_found = false;
+			
+			// lasers
+			
+			tiny_square.collision_found = laser_collision_detect();
+			
+			// spikes
+			
+			tiny_square.collision_found = spike_collision_detect();
+			
+			// saws
+			
+			tiny_square.collision_found = saw_collision_detect();
+			
+			// lava pools
+			
+			tiny_square.collision_found = lava_pool_collision_detect();
+			
+			// path
+			
+			tiny_square.collision_found = false;
+			
+			// solid platforms
+			
+			tiny_square.collision_found = solid_platform_collision_detect();
+			
+			// water pool
+			
+			if (!tiny_square.is_dead) {
+				
+				tiny_square.in_fluid = false;
+				
+			}
+			
+			tiny_square.collision_found = water_pool_collision_detect();
+			
+			// turrets & bullets
+			
+			// turrets
+			
+			turret_collision_detect();
+			
+			// bullets
+			
+			bullets_collision_detect();
+			
+			// exit
+			
+			exit_collision_detect();
+			
+			// border
+			
+			if (tiny_square.top + tiny_square.height > canvas_height) {
+				
+				tiny_square.y_speed = 0;
+				
+				tiny_square.top = canvas_height - tiny_square.height;
+				
+				tiny_square.in_air = false;
+				
+			}	
+			
+			if (tiny_square.top < 0) {
+				
+				tiny_square.y_speed = 0;
+				
+				tiny_square.top = 0;
+				
+			}	
+			
+			if (tiny_square.left + tiny_square.width > canvas_width) {
+				
+				tiny_square.x_speed = 0;
+				
+				tiny_square.left = canvas_width - tiny_square.width;
+				
+			}	
+			
+			if (tiny_square.left < 0) {
+				
+				tiny_square.x_speed = 0;
+				
+				tiny_square.left = 0;
+				
+			}
+			
+			// final calculation
+			
+			if (!tiny_square.in_fluid) {
+			
+				tiny_square.top = (tiny_square.top * 100 + tiny_square.y_speed * 100) / 100;
+
+				tiny_square.left = (tiny_square.left * 100 + tiny_square.x_speed) / 100;
+				
+			}
+			
+			// tiny square
+			
+			draw_tiny_square(tiny_square.left , tiny_square.top);
+			
+			// end
+			
+			cycle_finished = true;
+			
+		} , 1);
+		
+		// key controls
+		
+		var spike_redraw_finished = true;
+		
+		window.onkeydown = function (e) {
+			
+			e = e || window.Event;
+			
+			move[e.keyCode] = true;
+			
+			if (e.keyCode == 80 && !main_menu.is_activated) {
+				
+				game_paused = !game_paused;
+				
+			}
+			
+			if (main_menu.is_activated) {
+				
+				if (e.keyCode == 13 && !game_paused) {
+				
+					main_menu.transit();
+					
+				}
+				
+				switch(e.keyCode){
+					case 37:
+						if (current_map > 0) {
+							current_map--;
+							main_menu.arrows.left -= 232; 
+							if (main_menu.arrows.left == 72 - 232 && main_menu.arrows.top == 120 + 210) {
+								main_menu.arrows.left = 72 + 232 * 3;
+								main_menu.arrows.top -= 120; 
+							}
+						}
+						break;
+					case 38:
+						if (current_map > 3) {
+							current_map -= 4;
+							main_menu.arrows.top -= 120;
+						}
+						break;
+					case 39:
+						if (current_map < 7) {
+							current_map++;
+							main_menu.arrows.left += 232; 
+							if (main_menu.arrows.left == 72 + 232 * 4 && main_menu.arrows.top == 210) {
+								main_menu.arrows.left = 72;
+								main_menu.arrows.top += 120; 
+							}
+						}
+						break;
+					case 40:
+						if (current_map < 4) {
+							current_map += 4;
+							main_menu.arrows.top += 120;
+						}
+						break;
+				}
+				
+			} else if (game_paused) {
+				
+				switch(e.keyCode) {
+					case 68:
+						darkness_mode = !darkness_mode;
+						break;
+					case 71:
+						gore_mode = !gore_mode;
+						break;
+					case 73:
+						invisible_spike_mode = !invisible_spike_mode;
+						if (invisible_spike_mode) {
+							spikes_brush.clearRect(0 , 0 , canvas_width , canvas_width);
+						} else if (spike_redraw_finished) {
+							spike_redraw_finished = false;
+							var spike_tmp = [];
+							for (var i = 0; i < spikes.length; i++) {
+								spike_tmp.push(spikes[i]);
+							}
+							
+							spikes = [];
+							for (var i = 0; i < spike_tmp.length; i++) {
+								create_spikes(spike_tmp[i].left , spike_tmp[i].top , (spike_tmp[i].direction == "top" || spike_tmp[i].direction == "bottom")?(spike_tmp[i].width / 5):(spike_tmp[i].height / 5) , spike_tmp[i].direction);
+							}
+							spike_tmp = [];
+							spike_redraw_finished = true;
+						}
+						break;
+					case 81:
+						main_menu.transit("menu");
+				}
+				
+			}
+			
+		}
+		
+		window.onkeyup = function (e) {
+			
+			e = e || window.Event;
+			
+			move[e.keyCode] = false;
+			
+		}
+		
+		// game transition
+		
+		var game_maps = [
+			iang_zhi_ming,
+			bloodappraiser,
+			lin_shi_jei,
+			dai_ting_yu,
+			lwo_ha_zhoo,
+			zheng_zhi_han,
+			zhou_mooh_chien,
+			zhoo_zhian_yu,
+		]
+		
+		var current_map = 0;
+		
+		function generate_map (map_function) {
+			
+			// clear gore
+			
+			gore_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			// clear all solid platforms
+			
+			solid_platforms = [];
+			
+			solid_platforms_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			// clear all solid platforms
+			
+			water_pools = [];
+			
+			water_pool_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			// clear all solid platforms
+			
+			lava_pools = [];
+			
+			lava_pool_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			// clear all solid platforms
+			
+			portals = [];
+			
+			portal_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			// clear all solid platforms
+			
+			entries = [];
+			
+			exits = [];
+			
+			checkpoints = [];
+			
+			checkpoints_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			// clear all solid platforms
+			
+			saws = [];
+			
+			saw_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			// clear all solid platforms
+			
+			spikes = [];
+			
+			spikes_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			// clear all solid platforms
+			
+			turrets = [];
+			
+			turrets_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			bullets = [];
+			
+			bullets_brush.clearRect(0 , 0 , canvas_width , canvas_height);
+			
+			// generate
+			
+			map_function();
+			
+		}
+			
+	</script>
+	
+	<script src = "test.js"></script>
+
+</html>
